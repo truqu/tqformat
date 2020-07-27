@@ -1,0 +1,27 @@
+-module(comment_expr).
+
+-export([ main/1
+          %% , cli/0
+          %% , do/1
+        ]).
+
+-type foo() :: foo | bar | baz.
+
+%% comment
+main(_) -> ok.
+
+foo() ->
+  %% only a comment!
+  _L = [],
+  ok.
+
+bar() ->
+  [%% now with
+   %% a stack comment
+  ].
+
+foo( Arg1
+   , Arg2
+     %% And a comment
+   ) ->
+  Arg1 + Arg2. %% and a comment?

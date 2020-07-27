@@ -1,0 +1,7 @@
+#! /usr/bin/env escript
+
+-module(foo).
+
+-export([main/1]).
+
+main(_) -> erlang:display(ok).

@@ -1,0 +1,10 @@
+{"1.1.0",
+[{<<"cut">>,{pkg,<<"cut">>,<<"1.0.2">>},0},
+ {<<"erlfmt">>,{pkg,<<"erlfmt">>,<<"0.4.2">>},0},
+ {<<"getopt">>,{pkg,<<"getopt">>,<<"1.0.1">>},0}]}.
+[
+{pkg_hash,[
+ {<<"cut">>, <<"4DF31DF4165A6CBC85C0C9589FEE2F55120B7786F6C527F1BBA538F7BFED99B4">>},
+ {<<"erlfmt">>, <<"C82EF2A21A3747AEE0E971E3FE082693B32BAE9E19BF8E25DDE07E1CA9341988">>},
+ {<<"getopt">>, <<"C73A9FA687B217F2FF79F68A3B637711BB1936E712B521D8CE466B29CBF7808A">>}]}
+].

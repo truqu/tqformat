@@ -1,0 +1,369 @@
+-module(ppe).
+
+%% Primitives
+-export([text/1, empty/0, line/0]).
+%% Named convenience documents
+-export([space/0]).
+%% Combinators
+-export([concat/2, vconcat/2, nest/2, align/1, indent/2, concat_with/2, cat/1, hcat/1,
+         vcat/1, sep/1, hsep/1, alt/2, flat_alt/2, never_flat/1]).
+%% Rendering
+-export([print/2]).
+
+%% Types
+-export_types([{document, 0}]).
+
+-type document() :: {text, pos_integer(), string()} |
+                    empty |
+                    line |
+                    {cat, document(), document()} |
+                    {nest, integer(), document()} |
+                    %% docs must have same content.
+                    {alt, document(), document()} |
+                    {align, document()} |
+                    {never_flat, document()} |
+                    %% besides having the same content, the first options should NOT include
+                    %% any line breaks whatsoever. Flat or go home.
+                    {flat_alt, document(), document()}.
+
+
+
+%%==============================================================================================
+%% Primitives
+%%==============================================================================================
+
+-spec text(binary() | string()) -> document().
+text(<<>>) ->
+    empty;
+text([]) ->
+    empty;
+text(T) when is_binary(T) ->
+    S = binary_to_list(T),
+    {text, length(S), S};
+text(T) when is_list(T) ->
+    {text, length(T), T}.
+
+-spec empty() -> document().
+empty() ->
+    empty.
+
+-spec line() -> document().
+line() ->
+    line.
+
+%%==============================================================================================
+%% Named convenience documents
+%%==============================================================================================
+
+-spec space() -> document().
+space() ->
+    {text, 1, " "}.
+
+%%==============================================================================================
+%% Combinators
+%%==============================================================================================
+
+-spec concat(Left :: document(), Right :: document()) -> document().
+concat(empty, Right) ->
+    Right;
+concat(Left, empty) ->
+    Left;
+concat({text, L1, C1}, {text, L2, C2}) ->
+    {text, L1 + L2, [C1, C2]};
+concat(Left, Right) ->
+    {cat, Left, Right}.
+
+-spec vconcat(Left :: document(), Right :: document()) -> document().
+vconcat(empty, Right) ->
+    Right;
+vconcat(Left, empty) ->
+    Left;
+vconcat(Left, Right) ->
+    concat(Left, concat(line(), Right)).
+
+-spec nest(Indent :: integer(), document()) -> document().
+nest(0, Document) ->
+    Document;
+nest(Indent, Document) ->
+    {nest, Indent, Document}.
+
+-spec align(document()) -> document().
+align(empty) ->
+    empty;
+align({align, _} = Document) ->
+    Document;
+align(Document) ->
+    {align, Document}.
+
+-spec concat_with(fun((D, D) -> D), [D]) -> D when D :: document().
+concat_with(_, []) ->
+    empty;
+concat_with(F, Xs) ->
+    foldr1(F, Xs).
+
+-spec cat([document()]) -> document().
+cat(Xs) ->
+    alt(hcat(Xs), vcat(Xs)).
+
+-spec hcat([document()]) -> document().
+hcat(Xs) ->
+    concat_with(fun concat/2, Xs).
+
+-spec vcat([document()]) -> document().
+vcat(Xs) ->
+    concat_with(fun vconcat/2, Xs).
+
+-spec hsep([document()]) -> document().
+hsep([]) ->
+    empty;
+hsep(Docs) ->
+    concat_with(fun (empty, R) ->
+                        R;
+                    (L, empty) ->
+                        L;
+                    (L, R) ->
+                        concat(L, concat(space(), R))
+                end,
+                Docs).
+
+-spec sep([document()]) -> document().
+sep(Docs) ->
+    alt(hsep(Docs), vcat(Docs)).
+
+-spec alt(document(), document()) -> document().
+alt(empty, Right) ->
+    Right;
+alt(Left, empty) ->
+    Left;
+alt(Left, Right) ->
+    {alt, Left, Right}.
+
+-spec indent(integer(), document()) -> document().
+indent(X, Doc) ->
+    concat(text(spacing(X)), align(Doc)).
+
+-spec flat_alt(document(), document()) -> document().
+flat_alt(Left, Right) ->
+    case flattened(Left) of
+      none ->
+          Right;
+      FlatLeft ->
+          {flat_alt, FlatLeft, Right}
+    end.
+
+-spec never_flat(document()) -> document().
+never_flat(D) ->
+    {never_flat, D}.
+
+%%==============================================================================================
+%% Internal combinator functions
+%%==============================================================================================
+
+-spec flattened(document()) -> none | document().
+flattened(empty) ->
+    empty;
+flattened(line) ->
+    none;
+flattened({text, _, _} = D) ->
+    D;
+flattened({cat, L, R}) ->
+    case flattened(L) of
+      none ->
+          none;
+      FlatLeft ->
+          case flattened(R) of
+            none ->
+                none;
+            FlatRight ->
+                {cat, FlatLeft, FlatRight}
+          end
+    end;
+flattened({alt, L, R}) ->
+    case {flattened(L), flattened(R)} of
+      {none, FlatRight} ->
+          FlatRight;
+      {FlatLeft, none} ->
+          FlatLeft;
+      {FlatLeft, FlatRight} ->
+          {alt, FlatLeft, FlatRight}
+    end;
+flattened({align, D}) ->
+    case flattened(D) of
+      none ->
+          none;
+      FlatD ->
+          {align, FlatD}
+    end;
+flattened({flat_alt, Left, _}) ->
+    Left;
+flattened({never_flat, _}) ->
+    none.
+
+%%==============================================================================================
+%% Rendering
+%%==============================================================================================
+
+-spec print(Paper :: pos_integer(), document()) -> string().
+print(Paper, Document) ->
+    process(Paper, Document).
+
+%%==============================================================================================
+%% Internal rendering functions
+%%==============================================================================================
+
+-spec foldr1(fun((X, X) -> X), [X, ...]) -> X.
+foldr1(_, [X]) ->
+    X;
+foldr1(F, [X | Xs]) ->
+    F(X, foldr1(F, Xs)).
+
+-record(process,
+        {indent = 0 :: non_neg_integer(),
+         overflow = 0 :: integer(),
+         progress = 0 :: non_neg_integer(),
+         tokens = [] :: list(),
+         rest :: [{non_neg_integer(), document()}],
+         paper :: pos_integer()}).
+-record(done, {overflow :: integer(), tokens :: list(), lines :: integer()}).
+
+-spec process(pos_integer(), document()) -> string().
+process(Paper, Document) ->
+    loop([#process{rest = [{0, Document}], paper = Paper}]).
+
+-spec loop([#process{}]) -> string().
+loop(Processes) ->
+    Ps = lists:flatmap(fun (P) ->
+                               render_next(4, P#process{overflow = 0})
+                       end,
+                       Processes),
+    {Dones, Conts, OverConts, OverDones} = partition_results(Ps),
+    case Dones of
+      [_ | _] ->
+          [Done | _] = lists:sort(fun linesorter/2, Dones),
+          lists:flatten(Done#done.tokens);
+      _ ->
+          case Conts of
+            [_ | _] ->
+                C1 = lists:sort(fun sorter/2, Conts),
+                C2 = filter_processes(C1),
+                loop(C2);
+            _ ->
+                case OverConts of
+                  [_ | _] ->
+                      loop(least_overflowed(OverConts));
+                  _ ->
+                      [Done | _] = lists:sort(fun linesorter/2, OverDones),
+                      lists:flatten(Done#done.tokens)
+                end
+          end
+    end.
+
+linesorter(#done{lines = L1}, #done{lines = L2}) ->
+    L1 >= L2.
+
+-spec render_next(LinesToGo, #process{}) -> [#process{} | #done{}] when LinesToGo ::
+                                                                            non_neg_integer().
+render_next(L, #process{rest = [{_, empty} | Rest]} = P) ->
+    render_next(L, P#process{rest = Rest});
+render_next(L, #process{rest = [{_, {text, S, C}} | Rest]} = P) ->
+    Overflow = max(P#process.overflow, P#process.indent + S - P#process.paper),
+    render_next(L,
+                P#process{progress = P#process.progress + S,
+                          tokens = [P#process.tokens, C],
+                          indent = P#process.indent + S,
+                          rest = Rest,
+                          overflow = Overflow});
+render_next(T, #process{rest = [{I, {cat, L, R}} | Rest]} = P) ->
+    render_next(T, P#process{rest = [{I, L}, {I, R} | Rest]});
+render_next(L, #process{rest = [{I, {nest, E, D}} | Rest]} = P) ->
+    render_next(L, P#process{rest = [{I + E, D} | Rest]});
+render_next(T, #process{rest = [{_, {align, D}} | Rest]} = P) ->
+    render_next(T, P#process{rest = [{P#process.indent, D} | Rest]});
+render_next(T, #process{rest = [{I, {alt, L, R}} | Rest]} = P) ->
+    render_next(T, P#process{rest = [{I, L} | Rest]}) ++
+      render_next(T, P#process{rest = [{I, R} | Rest]});
+render_next(T, #process{rest = [{I, {flat_alt, L, R}} | Rest]} = P) ->
+    render_next(T, P#process{rest = [{I, L} | Rest]}) ++
+      render_next(T, P#process{rest = [{I, R} | Rest]});
+render_next(L, #process{overflow = O, rest = [], tokens = T}) ->
+    [#done{overflow = O, tokens = T, lines = L}];
+render_next(L, #process{rest = [{I, {never_flat, D}} | Rest]} = P) ->
+    render_next(L, P#process{rest = [{I, D} | Rest]});
+render_next(0, #process{rest = [{I, line} | Rest]} = P) ->
+    [P#process{indent = I, tokens = [P#process.tokens, "\n", spacing(I)], rest = Rest}];
+render_next(L, #process{rest = [{I, line} | Rest]} = P) ->
+    render_next(L - 1,
+                P#process{rest = Rest, indent = I, tokens = [P#process.tokens, "\n", spacing(I)]}).
+
+-spec spacing(non_neg_integer()) -> iodata().
+spacing(N) ->
+    repeat_char(N, $\s).
+
+-spec repeat_char(non_neg_integer(), integer()) -> iodata().
+repeat_char(0, _) ->
+    [];
+repeat_char(2, C) ->
+    [C, C];
+repeat_char(N, C) ->
+    repeat_char_help(N, C, []).
+
+-spec repeat_char_help(non_neg_integer(), integer(), iodata()) -> iodata().
+repeat_char_help(0, _, Acc) ->
+    Acc;
+repeat_char_help(N, C, Acc) when N >= 8 ->
+    repeat_char_help(N - 8, C, [C, C, C, C, C, C, C, C | Acc]);
+repeat_char_help(N, C, Acc) when N >= 4 ->
+    repeat_char_help(N - 4, C, [C, C, C, C | Acc]);
+repeat_char_help(N, C, Acc) ->
+    repeat_char_help(N - 1, C, [C | Acc]).
+
+least_overflowed([#process{overflow = O1} = P1, #process{overflow = O2} = P2 | R]) ->
+    case O1 =< O2 of
+      true ->
+          least_overflowed([P1 | R]);
+      false ->
+          least_overflowed([P2 | R])
+    end;
+least_overflowed([P]) ->
+    [P].
+
+-spec sorter(#process{}, #process{}) -> boolean().
+sorter(#process{indent = I1, progress = P1}, #process{indent = I2, progress = P2}) ->
+    I1 < I2 andalso P1 >= P2.
+
+-spec filter_processes([#process{}]) -> [#process{}].
+filter_processes([P1, P2 | Rest]) ->
+    case P1#process.progress >= P2#process.progress andalso
+           P1#process.indent =< P2#process.indent
+        of
+      true ->
+          filter_processes([P1 | Rest]);
+      false ->
+          [P1 | filter_processes([P2 | Rest])]
+    end;
+filter_processes(Xs) ->
+    Xs.
+
+-spec partition_results([#process{} | #done{}]) -> {[#done{}],
+                                                    [#process{}],
+                                                    [#process{}],
+                                                    [#done{}]}.
+partition_results(Items) ->
+    Bucket = fun (#process{overflow = O} = P, {Ds, Ps, OPs, ODs}) when O =< 0 ->
+                     {Ds, [P | Ps], OPs, ODs};
+                 (#process{overflow = O} = P, {Ds, Ps, OPs, ODs}) when O > 0 ->
+                     {Ds, Ps, [P | OPs], ODs};
+                 (#done{overflow = O} = D, {Ds, Ps, OPs, ODs}) when O =< 0 ->
+                     {[D | Ds], Ps, OPs, ODs};
+                 (#done{overflow = O} = D, {Ds, Ps, OPs, ODs}) when O > 0 ->
+                     {Ds, Ps, OPs, [D | ODs]}
+             end,
+    lists:foldl(Bucket, {[], [], [], []}, Items).
+
+%% Local variables:
+%% mode: erlang
+%% erlang-indent-level: 2
+%% indent-tabs-mode: nil
+%% fill-column: 96
+%% coding: utf-8
+%% End:
