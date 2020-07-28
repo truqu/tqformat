@@ -5,7 +5,7 @@
 format_file_test_() ->
   Files =
     filelib:fold_files("./test/data", "\.orig$", false, fun (X, Acc) -> [X | Acc] end, []),
-  test_format_files(Files).
+  {inparallel, test_format_files(Files)}.
 
 test_format_files([]) -> [];
 test_format_files([F | Files]) ->
