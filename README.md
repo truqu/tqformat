@@ -20,7 +20,7 @@ Our formatting style is largely based on how Emacs formats comma-first Erlang
 code. Hence, a map like this:
 
 ```erlang
-#{this => is, a => record, with => many, keys => and, values => and, wont => fit, on => a, single => line}.
+#{this => is, a => record, with => many, keys => and_, values => and_, wont => fit, on => a, single => line}.
 ```
 
 will result in the following:
@@ -29,8 +29,8 @@ will result in the following:
 #{ this => is
  , a => record
  , with => many
- , keys => and
- , values => and
+ , keys => and_
+ , values => and_
  , wont => fit
  , on => a
  , single => line
