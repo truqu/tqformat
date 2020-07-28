@@ -63,7 +63,7 @@ fold_docs([X, Y | Rest], Width) ->
   of
     {spec, other, _} -> [format_node(X, Width), fold_docs([Y | Rest], Width)];
     {T, T, []} when T =/= other -> [format_node(X, Width), fold_docs([Y | Rest], Width)];
-    {_, _, _} -> [format_node(X, Width), "\n", fold_docs([Y | Rest], Width)]
+    {_, _, _} -> [format_node(X, Width), $\n, fold_docs([Y | Rest], Width)]
   end.
 
 -spec read_nodes(file:name_all()) -> {ok, AbsForms, Warnings} | {error, Error} when
