@@ -143,7 +143,7 @@ flattened({grouping, Sep, Docs}) ->
 
 -spec print(Paper :: pos_integer(), document()) -> iodata().
 print(Paper, Document) ->
-  [{_, Lines} | _] = best_layouts([discard_invalid(Paper, interpret(Paper, Document))]),
+  [{_, Lines} | _] = best_layouts(discard_invalid(Paper, interpret(Paper, Document))),
   lists:map(fun print_line/1, Lines).
 
 print_line(L) -> [spacing(L#line.indent), L#line.content, $\n].
@@ -185,17 +185,17 @@ interpret(_, {s, Length, Content}) ->
 interpret(W, {cat, LDoc, RDoc}) ->
   [Ls, Rs] = pmap(interpret(W, _), [LDoc, RDoc]),
   Candidates = [concat_l(L, R) || L <- Ls, R <- Rs],
-  best_layouts([discard_invalid(W, Candidates)]);
+  best_layouts(discard_invalid(W, Candidates));
 interpret(W, {flush, Doc}) -> [flush_l(L) || L <- interpret(W, Doc)];
 interpret(W, {indent, I, Doc}) ->
-  Layouts = best_layouts([discard_invalid(W - I, interpret(W - I, Doc))]),
+  Layouts = best_layouts(discard_invalid(W - I, interpret(W - I, Doc))),
   [indent_l(L, I) || L <- Layouts];
 interpret(W, {flat_alt, LDoc, RDoc}) ->
   [Ls, Rs] = pmap(interpret(W, _), [LDoc, RDoc]),
-  best_layouts([discard_invalid(W, Ls), discard_invalid(W, Rs)]);
+  best_layouts(merge(discard_invalid(W, Ls), discard_invalid(W, Rs)));
 interpret(W, {alt, LDoc, RDoc}) ->
   [Ls, Rs] = pmap(interpret(W, _), [LDoc, RDoc]),
-  best_layouts([discard_invalid(W, Ls), discard_invalid(W, Rs)]);
+  best_layouts(merge(discard_invalid(W, Ls), discard_invalid(W, Rs)));
 interpret(W, {grouping, SepDoc, IDocs}) ->
   [Sep] = interpret(W, SepDoc),
   ILayouts = pmap( fun ({I, Doc}) -> {I, interpret(W, Doc)};
@@ -225,11 +225,11 @@ interpret(W, {grouping, SepDoc, IDocs}) ->
                               ),
   Vertical =
     foldl1( fun (Xs, Ys) ->
-                  best_layouts([[concat_l(FX, Y) || X <- Xs, Y <- Ys, FX <- [flush_l(X)]]])
+                  best_layouts([concat_l(FX, Y) || X <- Xs, Y <- Ys, FX <- [flush_l(X)]])
             end
           , VCatElements
           ),
-  best_layouts([Horizontal, Vertical]).
+  best_layouts(merge(Horizontal, Vertical)).
 
 -spec only_single_line([layout()]) -> [layout()].
 only_single_line(Layouts) -> lists:takewhile(fun ({#m{height = H}, _}) -> H == 0 end, Layouts).
@@ -315,7 +315,7 @@ narrowest([{LM, _} = L, {RM, _} = R | Rest]) ->
 narrowest([L]) -> L.
 
 -spec best_layouts([[layout(), ...]]) -> [layout(), ...].
-best_layouts(Layouts) -> pareto(mergeAll(Layouts), []).
+best_layouts(Layouts) -> pareto(Layouts, []).
 
 -spec pareto([layout()], [layout()]) -> [layout(), ...].
 pareto([], Acc) -> lists:reverse(Acc);
@@ -326,13 +326,9 @@ pareto([X | Xs], Acc) ->
     false -> pareto(Xs, [X | Acc])
   end.
 
--spec mergeAll([[layout()]]) -> [layout()].
-mergeAll(Xs) -> lists:foldl(fun merge/2, [], Xs).
-
 -spec merge([layout()], [layout()]) -> [layout()].
 merge([], Xs) -> Xs;
-merge([X | Xs], []) -> merge(Xs, [X]);
-merge([X | Xs], [X | _] = Ys) -> merge(Xs, Ys);
+merge(Xs, []) -> Xs;
 merge([{MX, _} = X | Xs] = AXs, [{MY, _} = Y | Ys] = AYs) ->
   case MX =< MY of
     true -> [X | merge(Xs, AYs)];
