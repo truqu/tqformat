@@ -64,9 +64,9 @@ f({R, R}) ->
 b() -> case foo:bar() of #{a := 2} -> 19 end.
 
 -spec c(Atom :: atom(), Integer :: integer()) -> {atom(), integer()};
-       (X, Y) -> {atom(), float()} when
-    X :: atom(),
-    is_subtype(Y, float());
+       (X, Y) -> {atom(), float()}
+          when X :: atom(),
+               is_subtype(Y, float());
        (integer(), atom()) -> {integer(), atom()}.
 c(A, B) ->
   _ = integer,

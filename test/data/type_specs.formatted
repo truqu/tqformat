@@ -72,9 +72,9 @@ b() -> case foo:bar() of #{a := 2} -> 19 end.
 -define(I, integer).
 
 -spec c(Atom :: atom(), Integer :: ?I()) -> {atom(), integer()};
-       (X, Y) -> {atom(), float()} when
-    X :: atom(),
-    is_subtype(Y, float());
+       (X, Y) -> {atom(), float()}
+          when X :: atom(),
+               is_subtype(Y, float());
        (integer(), atom()) -> {integer(), atom()}.
 c(A, B) ->
   _ = ?I,

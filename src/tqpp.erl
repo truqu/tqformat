@@ -184,18 +184,17 @@ interpret(_, {s, Length, Content}) ->
   [{#m{height = 0, last_width = Length, max_width = Length}, [#line{content = Content}]}];
 interpret(W, {cat, LDoc, RDoc}) ->
   [Ls, Rs] = pmap(interpret(W, _), [LDoc, RDoc]),
-  Candidates = [concat_l(L, R) || L <- Ls, R <- Rs],
-  best_layouts(discard_invalid(W, Candidates));
+  best_layouts(merge_all([concat_l_rs(W, L, Rs) || L <- Ls]));
 interpret(W, {flush, Doc}) -> [flush_l(L) || L <- interpret(W, Doc)];
 interpret(W, {indent, I, Doc}) ->
   Layouts = best_layouts(discard_invalid(W - I, interpret(W - I, Doc))),
   [indent_l(L, I) || L <- Layouts];
 interpret(W, {flat_alt, LDoc, RDoc}) ->
   [Ls, Rs] = pmap(interpret(W, _), [LDoc, RDoc]),
-  best_layouts(merge(discard_invalid(W, Ls), discard_invalid(W, Rs)));
+  best_layouts(discard_invalid(W, merge(Ls, Rs)));
 interpret(W, {alt, LDoc, RDoc}) ->
   [Ls, Rs] = pmap(interpret(W, _), [LDoc, RDoc]),
-  best_layouts(merge(discard_invalid(W, Ls), discard_invalid(W, Rs)));
+  best_layouts(discard_invalid(W, merge(Ls, Rs)));
 interpret(W, {grouping, SepDoc, IDocs}) ->
   [Sep] = interpret(W, SepDoc),
   ILayouts = pmap( fun ({I, Doc}) -> {I, interpret(W, Doc)};
@@ -214,22 +213,19 @@ interpret(W, {grouping, SepDoc, IDocs}) ->
                        end
                      , ILayouts
                      ),
-  Horizontal = discard_invalid( W
-                              , foldl1( fun (Xs, Ys) ->
-                                              [ concat_l(XSep, Y)
-                                                || X <- Xs, Y <- Ys, XSep <- [concat_l(X, Sep)]
-                                              ]
-                                        end
-                                      , HCatElements
-                                      )
-                              ),
-  Vertical =
-    foldl1( fun (Xs, Ys) ->
-                  best_layouts([concat_l(FX, Y) || X <- Xs, Y <- Ys, FX <- [flush_l(X)]])
-            end
-          , VCatElements
-          ),
-  best_layouts(merge(Horizontal, Vertical)).
+  Horizontal = foldl1(fun (Xs, Ys) -> concat_ls(W, Xs, Ys, Sep) end, HCatElements),
+  Vertical = foldl1(fun (Xs, Ys) -> vconcat_ls(W, Xs, Ys) end, VCatElements),
+  best_layouts(discard_invalid(W, merge(Horizontal, Vertical))).
+
+concat_l_rs(W, L, Rs) -> discard_invalid(W, [concat_l(L, R) || R <- Rs]).
+
+concat_ls(W, Ls, Rs, Sep) ->
+  Candidates = [concat_l_rs(W, LSep, Rs) || L <- Ls, LSep <- [concat_l(L, Sep)]],
+  best_layouts(merge_all(Candidates)).
+
+vconcat_ls(W, Ls, Rs) ->
+  Candidates = [concat_l_rs(W, FL, Rs) || L <- Ls, FL <- [flush_l(L)]],
+  best_layouts(merge_all(Candidates)).
 
 -spec only_single_line([layout()]) -> [layout()].
 only_single_line(Layouts) -> lists:takewhile(fun ({#m{height = H}, _}) -> H == 0 end, Layouts).
@@ -297,34 +293,53 @@ dominates({{_, LH, LW, LMW}, _}, {{_, RH, RW, RMW}, _}) ->
 
 -spec discard_invalid(pos_integer(), [layout(), ...]) -> [layout(), ...].
 discard_invalid(_, []) -> [];
-discard_invalid(W, Layouts) when is_list(Layouts) ->
-  case lists:filter(fits(W, _), Layouts) of
-    [] -> [narrowest(Layouts)];
-    Valids -> Valids
+discard_invalid(W, [F | _] = Layouts) ->
+  Filtered = lists:foldr( fun ({LM, _} = X, {[], {RM, _} = Y}) ->
+                                case LM#m.max_width =< W of
+                                  true -> {[X], Y};
+                                  false ->
+                                    case LM#m.max_width =< RM#m.max_width of
+                                      true -> {[], X};
+                                      false -> {[], Y}
+                                    end
+                                end;
+                              ({LM, _} = X, {Acc, Y}) ->
+                                case LM#m.max_width =< W of
+                                  true -> {[X | Acc], Y};
+                                  false -> {Acc, Y}
+                                end
+                          end
+                        , {[], F}
+                        , Layouts
+                        ),
+  case Filtered of
+    {[], X} -> [X];
+    {Xs, _} -> Xs
   end.
 
--spec fits(pos_integer(), layout()) -> boolean().
-fits(W, {#m{max_width = MW}, _}) -> W >= MW.
-
--spec narrowest([layout(), ...]) -> layout().
-narrowest([{LM, _} = L, {RM, _} = R | Rest]) ->
-  case LM#m.max_width =< RM#m.max_width of
-    true -> narrowest([L | Rest]);
-    false -> narrowest([R | Rest])
-  end;
-narrowest([L]) -> L.
-
 -spec best_layouts([[layout(), ...]]) -> [layout(), ...].
-best_layouts(Layouts) -> pareto(Layouts, []).
+best_layouts(Layouts) -> pareto(Layouts).
+
+-spec pareto([layout()]) -> [layout()].
+pareto(Xs) -> pareto(Xs, []).
 
 -spec pareto([layout()], [layout()]) -> [layout(), ...].
 pareto([], Acc) -> lists:reverse(Acc);
 pareto([X | Xs], []) -> pareto(Xs, [X]);
 pareto([X | Xs], Acc) ->
-  case lists:any(dominates(_, X), Acc) of
+  case any_dominates(X, Acc) of
     true -> pareto(Xs, Acc);
     false -> pareto(Xs, [X | Acc])
   end.
+
+any_dominates(X, [Y | Ys]) -> dominates(Y, X) orelse any_dominates(X, Ys);
+any_dominates(_, []) -> false.
+
+-spec merge_all([[layout()]]) -> [layout()].
+merge_all([]) -> [];
+merge_all([Xs]) -> Xs;
+merge_all([Xs, Ys]) -> merge(Xs, Ys);
+merge_all([Xs | Rest]) -> lists:foldl(fun merge/2, Xs, Rest).
 
 -spec merge([layout()], [layout()]) -> [layout()].
 merge([], Xs) -> Xs;
