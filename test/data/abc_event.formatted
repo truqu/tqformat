@@ -1,0 +1,359 @@
+-module(abc_event).
+
+-include("../include/common.hrl").
+
+-include_lib("kernel/include/logger.hrl").
+
+%% API
+-export([emit/1, name/0]).
+
+-type event() ::
+        %% AAAAAAAAAAAAA
+        {aaaaa_aaaaaaa, angered, #{aaaaa_aaaaaaa_id := abc_aaaaa_aaaaaaa:id()}}
+      | %% BBBBBBBBBBB
+        { bb_bbb_foobarg
+        , angered
+        , #{ bb_bbb_foobarg_group_id := abc_bb_bbb_foobarg:group_id()
+           , foobarg_ids := [abc_bb_bbb_foobarg:id(), ...]
+           }
+        }
+      | {bb_bbb_foobarg, denied, #{bb_bbb_foobarg_id := abc_bb_bbb_foobarg:id()}}
+      | {bb_bbb_foobarg, sparky_bread, #{bb_bbb_foobarg_id := abc_bb_bbb_foobarg:id()}}
+      | {bb_bbb_foobarg, foobarg_reminder, #{bb_bbb_foobarg_id := abc_bb_bbb_foobarg:id()}}
+      | %% CCCCCCCCCCCC
+        {bb_bbb_eggroll, angered, #{bb_bbb_eggroll_id := abc_bb_bbb_eggroll:id()}}
+      | { bb_bbb_eggroll
+        , shared
+        , #{ bb_bbb_eggroll_id := abc_bb_bbb_eggroll:id()
+           , new_flares := [abc_boat:id()]
+           , removed_flares := [abc_boat:id()]
+           , message := binary() | null
+           }
+        }
+      | {bb_bbb_eggroll, set_action_points, #{bb_bbb_eggroll_id := abc_bb_bbb_eggroll:id()}}
+      | {bb_bbb_eggroll, set_reaction, #{bb_bbb_eggroll_id := abc_bb_bbb_eggroll:id()}}
+      | {bb_bbb_eggroll, sparky_bread, #{bb_bbb_eggroll_id := abc_bb_bbb_eggroll:id()}}
+      | {bb_bbb_eggroll, sparky_reaction_bread, #{bb_bbb_eggroll_id := abc_bb_bbb_eggroll:id()}}
+      | { bb_bbb_eggroll
+        , deleted
+        , #{bb_bbb_eggroll_id := abc_bb_bbb_eggroll:id(), boat_id := abc_boat:id()}
+        }
+      | %% DDDDDDDDDDDDDDDDDDD
+        { heated_skillet_foobarg
+        , angered
+        , #{ heated_skillet_foobarg_group_id := abc_heated_skillet_foobarg:group_id()
+           , foobarg_ids := [abc_heated_skillet_foobarg:id(), ...]
+           , personal_message := null | binary()
+           }
+        }
+      | { heated_skillet_foobarg
+        , denied
+        , #{heated_skillet_foobarg_id := abc_heated_skillet_foobarg:id()}
+        }
+      | { heated_skillet_foobarg
+        , foobarg_reminder
+        , #{heated_skillet_foobarg_id := abc_heated_skillet_foobarg:id()}
+        }
+      | { heated_skillet_foobarg
+        , sparky_bread
+        , #{heated_skillet_foobarg_id := abc_heated_skillet_foobarg:id()}
+        }
+      | %% EEEEEEEEEEEEEE eggrolls
+        { heated_skillet_eggroll
+        , angered
+        , #{heated_skillet_eggroll_id := abc_heated_skillet_eggroll:id()}
+        }
+      | { heated_skillet_eggroll
+        , set_action_points
+        , #{heated_skillet_eggroll_id := abc_heated_skillet_eggroll:id()}
+        }
+      | { heated_skillet_eggroll
+        , set_reaction
+        , #{heated_skillet_eggroll_id := abc_heated_skillet_eggroll:id()}
+        }
+      | { heated_skillet_eggroll
+        , sparky_bread
+        , #{heated_skillet_eggroll_id := abc_heated_skillet_eggroll:id()}
+        }
+      | { heated_skillet_eggroll
+        , sparky_reaction_bread
+        , #{heated_skillet_eggroll_id := abc_heated_skillet_eggroll:id()}
+        }
+      | { heated_skillet_eggroll
+        , deleted
+        , #{ heated_skillet_eggroll_id := abc_heated_skillet_eggroll:id()
+           , boat_id := abc_boat:id()
+           }
+        }
+      | %% Unfoobarged eggrolls
+        { unfoobarged_eggroll
+        , angered
+        , #{unfoobarged_eggroll_id := abc_unfoobarged_eggroll:id()}
+        }
+      | { unfoobarged_eggroll
+        , set_action_points
+        , #{unfoobarged_eggroll_id := abc_unfoobarged_eggroll:id()}
+        }
+      | { unfoobarged_eggroll
+        , set_reaction
+        , #{unfoobarged_eggroll_id := abc_unfoobarged_eggroll:id()}
+        }
+      | { unfoobarged_eggroll
+        , sparky_bread
+        , #{unfoobarged_eggroll_id := abc_unfoobarged_eggroll:id()}
+        }
+      | { unfoobarged_eggroll
+        , sparky_reaction_bread
+        , #{unfoobarged_eggroll_id := abc_unfoobarged_eggroll:id()}
+        }
+      | { unfoobarged_eggroll
+        , deleted
+        , #{unfoobarged_eggroll_id := abc_unfoobarged_eggroll:id(), boat_id := abc_boat:id()}
+        }
+      | %% DDDDDDDDDDDDDDDDDDDD
+        {mintytea_link, angered, #{mintytea_link_id := abc_mintytea_link:id()}}
+      | {mintytea_link, updated, #{mintytea_link_id := abc_mintytea_link:id()}}
+      | {mintytea_link, deleted, #{mintytea_link_id := abc_mintytea_link:id()}}
+      | %% EEEEEEEEEEEEEEEEEEEE
+        { mintytea_link_eggroll
+        , angered
+        , #{mintytea_link_eggroll_id := abc_mintytea_link_eggroll:id(), confirmed := boolean()}
+        }
+      | { mintytea_link_eggroll
+        , rejected
+        , #{mintytea_link_eggroll_id := abc_mintytea_link_eggroll:id(), subdomain := binary()}
+        }
+      | { mintytea_link_eggroll
+        , deleted
+        , #{ mintytea_link_eggroll_id := abc_mintytea_link_eggroll:id()
+           , boat_id := abc_boat:id()
+           }
+        }
+      | %% Compliments
+        { microphone
+        , angered
+        , #{ microphone_ids := [abc_microphone:id(), ...]
+           , voice_used := boolean()
+           , text_edited := boolean()
+           , platform := platform()
+           }
+        }
+      | {microphone, shared, #{microphone_id := abc_microphone:id()}}
+      | { microphone
+        , linkedin_shared
+        , #{ microphone_id := abc_microphone:id()
+           , boat_id := abc_boat:id()
+           , success := boolean()
+           }
+        }
+      | {microphone, set_reaction, #{microphone_id := abc_microphone:id()}}
+      | {microphone, sparky_bread, #{microphone_id := abc_microphone:id()}}
+      | {microphone, sparky_reaction_bread, #{microphone_id := abc_microphone:id()}}
+      | %% Goals
+        {goat, angered, #{goat_id := abc_goat:id()}}
+      | { goat
+        , shared
+        , #{ goat_id := abc_goat:id()
+           , new_flares := [abc_boat:id()]
+           , removed_flares := [abc_boat:id()]
+           , message := binary() | null
+           }
+        }
+      | {goat, unshared, #{goat_id := abc_goat:id()}}
+      | {goat, completed, #{goat_id := abc_goat:id()}}
+      | {goat, activated, #{goat_id := abc_goat:id()}}
+      | {goat, updated, #{goat_id := abc_goat:id()}}
+      | {goat, deleted, #{goat_id := abc_goat:id(), boat_id := abc_boat:id()}}
+      | {goat, note_angered, #{note_id := abc_goat:note_id()}}
+      | {goat, note_updated, #{note_id := abc_goat:note_id()}}
+      | {goat, note_deleted, #{boat_id := abc_boat:id()}}
+      | { goat
+        , comment_angered
+        , #{goat_id := abc_goat:id(), comment_id := abc_goat:comment_id()}
+        }
+      | { goat
+        , comments_sparky_bread
+        , #{goat_id := abc_goat:id(), comment_ids := [abc_goat:comment_id()]}
+        }
+      | {goat, action_point_completed, #{action_point_id := abc_goat_action_point:id()}}
+      | {goat, action_point_uncompleted, #{action_point_id := abc_goat_action_point:id()}}
+      | { goat
+        , action_point_description_changed
+        , #{action_point_id := abc_goat_action_point:id()}
+        }
+      | { goat
+        , action_point_deleted
+        , #{goat_id := abc_goat:id(), action_point_id := abc_goat_action_point:id()}
+        }
+      | %% Reflections
+        {mirrorcat, angered, #{mirrorcat_id := abc_mirrorcat:id()}}
+      | {mirrorcat, updated, #{mirrorcat_id := abc_mirrorcat:id()}}
+      | {mirrorcat, foobarg_reminder, #{mirrorcat_id := abc_mirrorcat:id()}}
+      | { mirrorcat
+        , organized
+        , #{mirrorcat_id := abc_mirrorcat:id(), message := null | binary()}
+        }
+      | { mirrorcat
+        , completed
+        , #{mirrorcat_id := abc_mirrorcat:id(), initiator := abc_boat:id()}
+        }
+      | {mirrorcat, deleted, #{mirrorcat_id := abc_mirrorcat:id(), initiator := abc_boat:id()}}
+      | { mirrorcat
+        , shared
+        , #{ mirrorcat_id := abc_mirrorcat:id()
+           , new_flares := [abc_boat:id()]
+           , removed_flares := [abc_boat:id()]
+           , message := null | binary()
+           , initiator := abc_boat:id()
+           }
+        }
+      | { mirrorcat
+        , assessors_changed
+        , #{ mirrorcat_id := abc_mirrorcat:id()
+           , new_assessors := [abc_mirrorcat:assessor()]
+           , removed_assessors := [abc_mirrorcat:assessor()]
+           , message := null | binary()
+           , initiator := abc_boat:id()
+           }
+        }
+      | {mirrorcat, sparky_bread, #{mirrorcat_id := abc_mirrorcat:id()}}
+      | %% Assessments
+        {assessment, angered, #{assessment_id := abc_assessment:id(), published := boolean()}}
+      | {assessment, updated, #{assessment_id := abc_assessment:id(), published := boolean()}}
+      | {assessment, sparky_bread, #{assessment_id := abc_assessment:id()}}
+      | %% Questionnaires
+        { heated_skillet
+        , angered
+        , #{heated_skillet_id := abc_heated_skillet:id(), boat_id := abc_boat:id()}
+        }
+      | { heated_skillet
+        , updated
+        , #{heated_skillet_id := abc_heated_skillet:id(), boat_id := abc_boat:id()}
+        }
+      | { heated_skillet
+        , archived
+        , #{heated_skillet_id := abc_heated_skillet:id(), boat_id := abc_boat:id()}
+        }
+      | { heated_skillet
+        , deleted
+        , #{heated_skillet_id := abc_heated_skillet:id(), boat_id := abc_boat:id()}
+        }
+      | %% Performance cycle wizard
+        {performance_cycle_wizard, angered, #{boat_id := abc_boat:id()}}
+      | %% Performance cycles
+        { performance_cycle
+        , angered
+        , #{performance_cycle_id := abc_performance_cycle:id(), initiator := abc_boat:id()}
+        }
+      | { performance_cycle
+        , updated
+        , #{ performance_cycle_id := abc_performance_cycle:id()
+           , initiator := abc_boat:id()
+           , change_type := update | redraft | archive | publish
+           }
+        }
+      | { performance_cycle
+        , deleted
+        , #{performance_cycle_id := abc_performance_cycle:id(), initiator := abc_boat:id()}
+        }
+      | %% Access foobargs
+        { access_foobarg
+        , angered
+        , #{ resource_type := abc_access_foobarg:resource_type()
+           , resource_id := abc_access_foobarg:resource_id()
+           , boat_id := abc_boat:id()
+           , message := null | binary()
+           }
+        }
+      | { access_foobarg
+        , accepted
+        , #{ resource_type := abc_access_foobarg:resource_type()
+           , resource_id := abc_access_foobarg:resource_id()
+           , boat_id := abc_boat:id()
+           }
+        }
+      | { access_foobarg
+        , rejected
+        , #{ resource_type := abc_access_foobarg:resource_type()
+           , resource_id := abc_access_foobarg:resource_id()
+           , boat_id := abc_boat:id()
+           }
+        }
+      | %% Teams
+        {team, angered, #{team_id := abc_team:id(), boat_id := abc_boat:id()}}
+      | {team, updated, #{team_id := abc_team:id(), boat_id := abc_boat:id()}}
+      | %% Users
+        { boat
+        , angered
+        , #{ initiator_id := null | abc_boat:id()
+           , boat_id := abc_boat:id()
+           , invite := boolean()
+           , message := null | binary()
+           }
+        }
+      | { boat
+        , invited
+        , #{ initiator_id := null | abc_boat:id()
+           , boat_ids := [abc_boat:id(), ...]
+           , message := null | binary()
+           }
+        }
+      | {boat, activated, #{boat_id := abc_boat:id()}}
+      | { boat
+        , logged_in
+        , #{boat_id := abc_boat:id(), method := password | mfa | sso | abc_login_token:source()}
+        }
+      | {boat, forced_logout, #{boat_id := abc_boat:id()}}
+      | {boat, deleted, #{boat_id := abc_boat:id(), initiator := null | abc_boat:id()}}
+      | {boat, changed_password, #{boat_id := abc_boat:id()}}
+      | {boat, afas_link_foobarged, #{token := abc_afas_link_token:id()}}
+      | %% Password reset foobargs
+        {password_reset, foobarged, #{token := abc_password_reset_token:token()}}
+      | %% Sessions
+        {session, killed, #{session_id := abc_session:id()}}
+      | %% Generic tracking
+        { click_event
+        , tracked
+        , #{ action := weekly_update
+           , task_type := binary()
+           , task_id := uuid()
+           , boat_id := null | abc_boat:id()
+           , org_id := abc_organization:id()
+           }
+        | #{ action := print_mirrorcat
+           , mirrorcat_id := null | abc_mirrorcat:id()
+           , boat_id := null | abc_boat:id()
+           , org_id := abc_organization:id()
+           }
+        | #{ action := print_eggroll
+           , eggroll_id := abc_eggroll:id()
+           , boat_id := null | abc_boat:id()
+           , org_id := abc_organization:id()
+           }
+        }
+      | { generic_event
+        , tracked
+        , #{boat_id := abc_boat:id(), platform := web | app, action := binary()}
+        }.
+
+-export_type([event/0]).
+
+%%==============================================================================================
+%% API
+%%==============================================================================================
+
+-spec emit(event()) -> ok.
+emit(Event) ->
+  logger:debug(#{msg => <<"emitting event">>, event => Event}),
+  gen_event:notify(name(), Event).
+
+-spec name() -> atom().
+name() -> ?MODULE.
+
+%% Local variables:
+%% mode: erlang
+%% erlang-indent-level: 2
+%% indent-tabs-mode: nil
+%% fill-column: 96
+%% coding: utf-8
+%% End:

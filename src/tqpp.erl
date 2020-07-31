@@ -220,11 +220,11 @@ concat_l_rs(_W, L, Rs) -> [concat_l(L, R) || R <- Rs].
 
 concat_ls(W, Ls, Rs, Sep) ->
   Candidates = [concat_l_rs(W, LSep, Rs) || L <- Ls, LSep <- [concat_l(L, Sep)]],
-  discard_invalid(W, merge_all(Candidates)).
+  best_layouts(discard_invalid(W, merge_all(Candidates))).
 
 vconcat_ls(W, Ls, Rs) ->
   Candidates = [concat_l_rs(W, FL, Rs) || L <- Ls, FL <- [flush_l(L)]],
-  discard_invalid(W, merge_all(Candidates)).
+  best_layouts(discard_invalid(W, merge_all(Candidates))).
 
 -spec only_single_line([layout()]) -> [layout()].
 only_single_line(Layouts) -> lists:takewhile(fun ({#m{height = H}, _}) -> H == 0 end, Layouts).
