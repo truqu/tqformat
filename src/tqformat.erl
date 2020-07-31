@@ -3,7 +3,7 @@
 -type error_info() :: {file:name_all(), erl_anno:location(), module(), Reason :: any()}.
 
 %% API
--export([main/1, init/1, format_file/2]).
+-export([main/1, init/1, format_file/2, format_string/1]).
 -export([format/2]).
 
 %%==============================================================================================
@@ -30,6 +30,15 @@ format_file(Filename, #{width := Width, mode := Mode}) ->
         {error, _} = E -> E
       end;
     {error, _} = E -> E
+  end.
+
+-spec format_string(string()) -> {ok, string(), [error_info()]} | {error, error_info()}.
+format_string(String) ->
+  case read_string_nodes(String) of
+    {ok, Forms, Warnings} ->
+      Result = fold_docs(Forms, 96),
+      {ok, unicode:characters_to_list(Result), Warnings};
+    {error, _} = Err -> Err
   end.
 
 %%==============================================================================================
@@ -74,6 +83,15 @@ fold_docs([X, Y | Rest], Width) ->
 read_nodes(stdin) -> read_nodes(erlfmt_scan:io_node(standard_io), stdin, [], []);
 read_nodes(Filename) ->
   try file_read_nodes(Filename) catch {error, Error} -> {error, Error} end.
+
+-spec read_string_nodes(string()) -> {ok, AbsForms, Warnings} | {error, Error} when
+    AbsForms :: [erlfmt_parse:abstract_form()],
+    Warnings :: [error_info()],
+    Error :: error_info().
+read_string_nodes(Data) ->
+  try read_nodes(erlfmt_scan:string_node(Data), "nofile", [], [])
+  catch {error, Error} -> {error, Error}
+  end.
 
 -spec format_node(erlfmt_parse:abstract_form(), pos_integer()) -> string().
 format_node({raw_string, _Anno, String}, _) -> [String, $\n];

@@ -136,10 +136,23 @@ flattened({grouping, Sep, Docs}) ->
                        )).
 
 %%==============================================================================================
-%% Rendering
+%% Internal rendering types
 %%==============================================================================================
 
+-record( m
+       , { height :: non_neg_integer()
+         , last_width :: non_neg_integer()
+         , max_width :: non_neg_integer()
+         }
+       ).
 -record(line, {content = [] :: unicode:chardata(), indent = 0 :: integer()}).
+
+-type lines() :: [#line{}].
+-type layout() :: {#m{}, [lines()]}.
+
+%%==============================================================================================
+%% Rendering
+%%==============================================================================================
 
 -spec print(Paper :: pos_integer(), document()) -> iodata().
 print(Paper, Document) ->
@@ -160,20 +173,6 @@ spacing_help(0, Acc) -> Acc;
 spacing_help(N, Acc) when N >= 8 -> spacing_help(N - 8, ["        " | Acc]);
 spacing_help(N, Acc) when N >= 4 -> spacing_help(N - 4, ["    " | Acc]);
 spacing_help(N, Acc) -> spacing_help(N - 1, [$\s | Acc]).
-
-%%==============================================================================================
-%% Internal rendering types
-%%==============================================================================================
-
--record( m
-       , { height :: non_neg_integer()
-         , last_width :: non_neg_integer()
-         , max_width :: non_neg_integer()
-         }
-       ).
-
--type lines() :: [#line{}].
--type layout() :: {#m{}, [lines()]}.
 
 %%==============================================================================================
 %% Interpretation
@@ -213,19 +212,19 @@ interpret(W, {grouping, SepDoc, IDocs}) ->
                        end
                      , ILayouts
                      ),
-  Horizontal = foldl1(fun (Xs, Ys) -> concat_ls(W, Xs, Ys, Sep) end, HCatElements),
-  Vertical = foldl1(fun (Xs, Ys) -> vconcat_ls(W, Xs, Ys) end, VCatElements),
+  Horizontal = foldr1(fun (Xs, Ys) -> concat_ls(W, Xs, Ys, Sep) end, HCatElements),
+  Vertical = foldr1(fun (Xs, Ys) -> vconcat_ls(W, Xs, Ys) end, VCatElements),
   best_layouts(discard_invalid(W, merge(Horizontal, Vertical))).
 
-concat_l_rs(W, L, Rs) -> discard_invalid(W, [concat_l(L, R) || R <- Rs]).
+concat_l_rs(_W, L, Rs) -> [concat_l(L, R) || R <- Rs].
 
 concat_ls(W, Ls, Rs, Sep) ->
   Candidates = [concat_l_rs(W, LSep, Rs) || L <- Ls, LSep <- [concat_l(L, Sep)]],
-  best_layouts(merge_all(Candidates)).
+  discard_invalid(W, merge_all(Candidates)).
 
 vconcat_ls(W, Ls, Rs) ->
   Candidates = [concat_l_rs(W, FL, Rs) || L <- Ls, FL <- [flush_l(L)]],
-  best_layouts(merge_all(Candidates)).
+  discard_invalid(W, merge_all(Candidates)).
 
 -spec only_single_line([layout()]) -> [layout()].
 only_single_line(Layouts) -> lists:takewhile(fun ({#m{height = H}, _}) -> H == 0 end, Layouts).
@@ -317,7 +316,7 @@ discard_invalid(W, [F | _] = Layouts) ->
     {Xs, _} -> Xs
   end.
 
--spec best_layouts([[layout(), ...]]) -> [layout(), ...].
+-spec best_layouts([layout(), ...]) -> [layout(), ...].
 best_layouts(Layouts) -> pareto(Layouts).
 
 -spec pareto([layout()]) -> [layout()].
@@ -345,7 +344,7 @@ merge_all([Xs | Rest]) -> lists:foldl(fun merge/2, Xs, Rest).
 merge([], Xs) -> Xs;
 merge(Xs, []) -> Xs;
 merge([{MX, _} = X | Xs] = AXs, [{MY, _} = Y | Ys] = AYs) ->
-  case MX =< MY of
+  case MX < MY of
     true -> [X | merge(Xs, AYs)];
     false -> [Y | merge(AXs, Ys)]
   end.
@@ -363,11 +362,6 @@ foldr1(F, Xs) ->
              , Xs
              ).
 
--spec foldl1(fun ((X, X) -> X), [X, ...]) -> X.
-foldl1(_, [X]) -> X;
-foldl1(F, [X, Y | Xs]) -> foldl1(F, [F(X, Y) | Xs]).
-
--spec pop_last([X, ...]) -> {[X], X}.
 pop_last(Xs) ->
   lists:foldr( fun (X, null) -> {[], X};
                    (X, {Acc, L}) -> {[X | Acc], L}

@@ -321,9 +321,7 @@ layout_spec(AttrL, AttrN, {atom, Meta, _} = FName, [Clause | Clauses]) ->
   First = layout_spec_clause(Prelude, Clause),
   Spacing = tqpp:indent(AttrL + string:length(erlfmt_scan:get_anno(text, Meta)), tqpp:empty()),
   Rest = lists:map(layout_spec_clause(Spacing, _), Clauses),
-  Doc =
-    tqpp:concat_with(fun (A, B) -> tqpp:vcat(tqpp:cat(A, tqpp:t(";")), B) end, [First | Rest]),
-  tqpp:cat(Doc, tqpp:t(".")).
+  tqpp:cat(vertical_with_sep([First | Rest], tqpp:t(";")), tqpp:t(".")).
 
 layout_spec_clause(Prelude, {spec_clause, _, Head, Body, empty}) ->
   FHeadD = tqpp:cat(layout_expr(Head), tqpp:t(" ->")),

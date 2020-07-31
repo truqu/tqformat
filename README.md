@@ -25,7 +25,7 @@ code. Hence, a map like this:
 
 will result in the following:
 
-```erlang
+```erlang formatted
 #{ this => is
  , a => record
  , with => many
@@ -48,7 +48,7 @@ case Foo of bar -> do(something), ok; baz -> help end.
 
 Will be formatted like so:
 
-```erlang
+```erlang formatted
 case Foo of
   bar ->
     do(something),
