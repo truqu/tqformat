@@ -20,7 +20,12 @@ init(State) -> rebar3_format_prv:init(State).
     Result :: {ok, [error_info()]} | {error, error_info()}.
 format_file(Filename, OutFilename) when is_list(OutFilename) ->
   format_file( Filename
-             , #{width => 96, mode => {write, OutFilename}, verbose => false, files => []}
+             , #{ width => 96
+                , mode => {write, OutFilename}
+                , verbose => false
+                , files => []
+                , parallel => false
+                }
              );
 format_file(Filename, #{width := Width, mode := Mode}) ->
   case format(Filename, Width) of

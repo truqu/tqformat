@@ -7,6 +7,7 @@
                  , mode := overwrite | verify | {write, file:name_all()}
                  , verbose := boolean()
                  , files := [stdin | file:name_all()]
+                 , parallel := boolean()
                  }.
 
 -export_type([opts/0]).
@@ -35,6 +36,7 @@ opts() ->
   [ {width, $w, "width", {integer, 96}, "width of paper"}
   , {verify, undefined, "verify", undefined, "verify only (no write)"}
   , {verbose, undefined, "verbose", undefined, "verbose"}
+  , {sequential, $s, "sequential", undefined, "format files sequentially"}
   , {files, undefined, undefined, string, "files to format/verify"}
   ].
 
@@ -49,11 +51,13 @@ parse_opts([{files, Files} | Rest], Acc, Opts) ->
 parse_opts([{width, W} | Rest], Acc, Opts) -> parse_opts(Rest, Acc, Opts#{width => W});
 parse_opts([verify | Rest], Acc, Opts) -> parse_opts(Rest, Acc, Opts#{mode => verify});
 parse_opts([verbose | Rest], Acc, Opts) -> parse_opts(Rest, Acc, Opts#{verbose => true});
+parse_opts([sequential | Rest], Acc, Opts) -> parse_opts(Rest, Acc, Opts#{parallel => false});
 parse_opts([], [], _) -> error_out("Invalid options\n", 4);
 parse_opts([], Acc, Opts) -> Opts#{files => Acc}.
 
 -spec default_opts() -> opts().
-default_opts() -> #{width => 96, mode => overwrite, verbose => false, files => []}.
+default_opts() ->
+  #{width => 96, mode => overwrite, verbose => false, files => [], parallel => true}.
 
 -spec expand_files([string(), ...], Files) -> Files | no_return() when
     Files :: [stdin | file:name_all()].
@@ -85,13 +89,14 @@ error_out(Msg, Code) ->
 %%==============================================================================================
 
 -spec exec(opts()) -> any().
-exec(#{files := Files} = Opts) ->
+exec(#{files := Files, parallel := true} = Opts) ->
   Me = self(),
   await([ spawn(fun () ->
                       Me ! {self(), format_file(File, Opts)},
                       ok
                 end) || File <- Files
-        ]).
+        ]);
+exec(#{files := Files, parallel := false} = Opts) -> lists:foreach(format_file(_, Opts), Files).
 
 await([]) -> ok;
 await([Pid | Rest]) -> receive {Pid, _} -> await(Rest) end.
