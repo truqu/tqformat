@@ -20,11 +20,14 @@ init(State) ->
 -spec do(rebar_state:t()) -> {ok, rebar_state:t()}.
 do(State) ->
   ConfigOpts = rebar_state:get(State, tqformat, []),
-  {ArgOpts, ExtraFiles} = case rebar_state:command_parsed_args(State) of
-                            {ParsedArgOpts, []} -> {ParsedArgOpts, []};
-                            {ParsedArgOpts, OptFiles} -> {ParsedArgOpts, [{files, OptFiles}]}
-                          end,
-  Opts = ConfigOpts ++ ExtraFiles ++ ArgOpts,
+  ArgOpts = case rebar_state:command_parsed_args(State) of
+              {ParsedArgOpts, []} -> ParsedArgOpts;
+              {ParsedArgOpts, OptFiles} -> [{files, OptFiles}, ParsedArgOpts]
+            end,
+  Opts = case proplists:is_defined(files, ArgOpts) of
+           true -> proplists:delete(files, ConfigOpts) ++ ArgOpts;
+           false -> ConfigOpts ++ ArgOpts
+         end,
   tqformat_cli:do(Opts),
   {ok, State}.
 
