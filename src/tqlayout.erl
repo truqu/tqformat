@@ -91,7 +91,7 @@ do_layout_expr({record, _, Expr, Name, Values}) ->
            , container_o(Values, tqpp:t("{"), tqpp:t("}"))
            ]);
 do_layout_expr({bin, _, Values}) ->
-  tqpp:cat([tqpp:t("<"), container(Values, tqpp:t("<"), tqpp:t(">>"))]);
+  tqpp:cat([tqpp:t("<"), container_o(Values, tqpp:t("<"), tqpp:t(">>"))]);
 do_layout_expr({'...', _}) -> tqpp:t("...");
 do_layout_expr({'try', _, Exprs, OfClauses, CatchClauses, After}) ->
   layout_try_expr(Exprs, OfClauses, CatchClauses, After);
