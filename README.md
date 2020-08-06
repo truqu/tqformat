@@ -59,11 +59,65 @@ end.
 
 ## Usage
 
-This is a rebar3 plugin, so you'll want to add it to the plugins section of the
-configuration.
+`tqformat` can be used as a standalone escript or as a rebar3 plugin.
 
-Configuration can be provided through `rebar.config` or through command-line
-parameters.
+### As a rebar3 plugin
+
+`tqformat` can be used as a rebar3 plugin.
+
+```erlang
+{plugins, [tqformat]}.
+```
+
+After adding the plugin, running `rebar3 format` can be used to figure out what
+flags and configuration options are available. As an example, the following
+configuration in `rebar.config` will cause `rebar3 format` to format all
+relevant files in an umbrella application, and cause `rebar3 format --verify` to
+verify formatting in those same files.
+
+```erlang
+{ tqformat
+, [ { files
+    , ["apps/*/{src,test,include}/*.{hrl,erl,app.src}", "rebar.config", "config/*.config"]
+    }
+  ]
+}.
+```
+
+### As a standalone escript
+
+`tqformat` also exists as a standalone escript. This requires having Erlang
+installed (but then, most Erlang developers do), and accepts the same command
+line options as the rebar3 plugin.
+
+You can download an escript from the Releases page, or compile your own using
+`rebar3 as release escriptize`. This will build an escript into
+`_build/release/bin/tqformat`.
+
+## Integration with editors
+
+Missing configuration for your favourite editor? Please let us know by opening
+an issue!
+
+### Emacs
+
+Using [reformatter.el](https://github.com/purcell/reformatter.el), setting up
+`tqformat` as a formatter can be as simple as this:
+
+```elisp
+(reformatter-define tqformat
+    :program "tqformat"
+    :args '("-")
+    :lighter " TQF")
+```
+
+See also the instructions in the reformatter readme for how to set up
+format-on-save.
+
+### JetBrains IDE
+
+The [intellij-tqformat](https://github.com/truqu/intellij-tqformat) plugin
+allows using `tqformat` in all JetBrains IDE products.
 
 ## License
 
