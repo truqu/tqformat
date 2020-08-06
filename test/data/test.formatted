@@ -8,4 +8,4 @@ a_fun() -> x.
 what_about_multiline_binaries() ->
   << "foo"
      "bar"
-   >>.
+  >>.

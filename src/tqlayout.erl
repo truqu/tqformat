@@ -91,7 +91,7 @@ do_layout_expr({record, _, Expr, Name, Values}) ->
            , container_o(Values, tqpp:t("{"), tqpp:t("}"))
            ]);
 do_layout_expr({bin, _, Values}) ->
-  tqpp:cat([tqpp:t("<"), container_o(Values, tqpp:t("<"), tqpp:t(">>"))]);
+  tqpp:cat([tqpp:t("<"), container_o(Values, tqpp:t("<"), tqpp:t(">>"), -1)]);
 do_layout_expr({'...', _}) -> tqpp:t("...");
 do_layout_expr({'try', _, Exprs, OfClauses, CatchClauses, After}) ->
   layout_try_expr(Exprs, OfClauses, CatchClauses, After);
@@ -217,24 +217,26 @@ container([{comment, _, _}] = Args, L, R) -> container_o(Args, L, R);
 container([Arg], L, R) -> tqpp:cat([L, layout_expr(Arg), R]);
 container(Xs, L, R) -> container_o(Xs, L, R).
 
-container_o([], L, R) -> tqpp:cat(L, R);
-container_o([X], L, R) ->
+container_o(Xs, L, R) -> container_o(Xs, L, R, 0).
+
+container_o([], L, R, _) -> tqpp:cat(L, R);
+container_o([X], L, R, I) ->
   {ForceVert, X0} = layout_first_container_expr(X),
   case ForceVert of
-    true -> tqpp:vcat(tqpp:cat(L, X0), R);
-    false -> tqpp:grouping(tqpp:empty(), [{fa, tqpp:cat(L, X0), tqpp:hsep([L, X0])}, {0, R}])
+    true -> tqpp:vcat(tqpp:cat(L, X0), tqpp:indent(I, R));
+    false -> tqpp:grouping(tqpp:empty(), [{fa, tqpp:cat(L, X0), tqpp:hsep([L, X0])}, {I, R}])
   end;
-container_o([X | Xs], L, R) ->
+container_o([X | Xs], L, R, I) ->
   {ForceVert0, X0} = layout_first_container_expr(X),
   Items = lists:map(fun layout_other_container_expr/1, Xs),
   case ForceVert0 orelse lists:any(element(1, _), Items) of
     true ->
       TheItems = lists:map(fun ({_, {_, E}}) -> E end, Items),
-      tqpp:vcat([tqpp:hsep([L, X0])] ++ TheItems ++ [R]);
+      tqpp:vcat([tqpp:hsep([L, X0])] ++ TheItems ++ [tqpp:indent(I, R)]);
     false ->
       TheItems = lists:map(fun ({_, E}) -> E end, Items),
       tqpp:grouping( tqpp:empty()
-                   , [{fa, tqpp:cat(L, X0), tqpp:hsep([L, X0])} | TheItems] ++ [{0, R}]
+                   , [{fa, tqpp:cat(L, X0), tqpp:hsep([L, X0])} | TheItems] ++ [{I, R}]
                    )
   end.
 

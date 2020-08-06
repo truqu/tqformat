@@ -240,7 +240,7 @@ long_bin() ->
        , 333333333333333333
        , 333333333333333333
        , 333333333333333333
-       >>,
+      >>,
   Y = << 1:1
        , 1:1
        , 1:1
@@ -253,7 +253,7 @@ long_bin() ->
        , 3/float
        , 3/float
        , 3/float
-       >>,
+      >>,
   << X/binary
    , Y/binary
    , X/binary
@@ -264,7 +264,7 @@ long_bin() ->
    , Y/binary
    , X/binary
    , Y/binary
-   >>.
+  >>.
 
 -spec long_guard(integer()) -> integer().
 long_guard(VeryVeryLongName) when
