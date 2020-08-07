@@ -17,15 +17,15 @@
 %%==============================================================================================
 
 -spec main(any()) -> any().
-main([]) -> getopt:usage(opts(), "tqformat");
+main([]) -> help();
 main(Argv) ->
   io:setopts([binary, {encoding, unicode}]),
   case getopt:parse(opts(), Argv) of
     {ok, {ArgOpts, []}} -> do(ArgOpts);
     {ok, {ArgOpts, ExtraFiles}} -> do([{files, ExtraFiles} | ArgOpts]);
     {error, Error} ->
-      io:put_chars(standard_error, [getopt:format_error(opts(), Error), "\n"]),
-      getopt:usage(opts(), "tqformat")
+      io:put_chars(standard_error, [getopt:format_error(opts(), Error), $\n, $\n]),
+      help()
   end.
 
 -spec do(proplists:proplist()) -> any().
@@ -41,6 +41,21 @@ opts() ->
   ].
 
 %%==============================================================================================
+%% Internal functions -- Help
+%%==============================================================================================
+
+-spec help() -> ok.
+help() ->
+  _ = application:load(tqformat),
+  {ok, Version} = application:get_key(tqformat, vsn),
+  GithubURL = "https://github.com/truqu/tqformat",
+  io:format( standard_error
+           , "tqformat@~s - Find more info and help on GitHub: ~s~n~n"
+           , [Version, GithubURL]
+           ),
+  getopt:usage(opts(), "tqformat").
+
+%%==============================================================================================
 %% Internal functions -- Args
 %%==============================================================================================
 
@@ -52,7 +67,7 @@ parse_opts([{width, W} | Rest], Acc, Opts) -> parse_opts(Rest, Acc, Opts#{width 
 parse_opts([verify | Rest], Acc, Opts) -> parse_opts(Rest, Acc, Opts#{mode => verify});
 parse_opts([verbose | Rest], Acc, Opts) -> parse_opts(Rest, Acc, Opts#{verbose => true});
 parse_opts([sequential | Rest], Acc, Opts) -> parse_opts(Rest, Acc, Opts#{parallel => false});
-parse_opts([], [], _) -> error_out("Invalid options\n", 4);
+parse_opts([], [], _) -> error_out("Invalid options", 4);
 parse_opts([], Acc, Opts) -> Opts#{files => Acc}.
 
 -spec default_opts() -> opts().
@@ -77,11 +92,12 @@ expand_files(File, Acc) when is_integer(hd(File)) ->
 expand_files(Files, Acc) -> lists:foldl(fun expand_files/2, Acc, Files).
 
 -spec no_combine_stdin_with_files() -> no_return().
-no_combine_stdin_with_files() -> error_out("stdin cannot be combined with other files\n", 4).
+no_combine_stdin_with_files() -> error_out("stdin cannot be combined with other files", 4).
 
 -spec error_out(unicode:chardata(), pos_integer()) -> no_return().
 error_out(Msg, Code) ->
-  io:put_chars(standard_error, Msg),
+  io:put_chars(standard_error, [Msg, $\n, $\n]),
+  help(),
   erlang:halt(Code).
 
 %%==============================================================================================
