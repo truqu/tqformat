@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push: tags
+
+jobs:
+  build:
+    name: Build the escript artifact
+    runs-on: ubuntu-latest
+    container:
+      image: erlang:21
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build formatter
+      run: rebar3 as release escriptize
+    - name: Upload artifact
+      uses: actions/upload-artifact@v1
+      with:
+        name: escript-artifact
+        path: ./_build/release/bin/tqformat
+  draft_release:
+    name: Create draft release
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download Artifact
+      uses: actions/download-artifact@v1
+      with:
+        name: escript-artifact
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: true
+        prerelease: false
+    - name: Attach release asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./escript-artifact/tqformat
+        asset_name: tqformat
+        asset_content_type: application/octet-stream
