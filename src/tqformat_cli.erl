@@ -38,6 +38,7 @@ opts() ->
   , {verbose, undefined, "verbose", undefined, "verbose"}
   , {sequential, $s, "sequential", undefined, "format files sequentially"}
   , {files, undefined, undefined, string, "files to format/verify"}
+  , {version, $v, "version", undefined, "show version"}
   ].
 
 %%==============================================================================================
@@ -46,14 +47,18 @@ opts() ->
 
 -spec help() -> ok.
 help() ->
-  _ = application:load(tqformat),
-  {ok, Version} = application:get_key(tqformat, vsn),
   GithubURL = "https://github.com/truqu/tqformat",
   io:format( standard_error
            , "tqformat@~s - Find more info and help on GitHub: ~s~n~n"
-           , [Version, GithubURL]
+           , [version(), GithubURL]
            ),
   getopt:usage(opts(), "tqformat").
+
+-spec version() -> string().
+version() ->
+  _ = application:load(tqformat),
+  {ok, Version} = application:get_key(tqformat, vsn),
+  Version.
 
 %%==============================================================================================
 %% Internal functions -- Args
@@ -67,6 +72,9 @@ parse_opts([{width, W} | Rest], Acc, Opts) -> parse_opts(Rest, Acc, Opts#{width 
 parse_opts([verify | Rest], Acc, Opts) -> parse_opts(Rest, Acc, Opts#{mode => verify});
 parse_opts([verbose | Rest], Acc, Opts) -> parse_opts(Rest, Acc, Opts#{verbose => true});
 parse_opts([sequential | Rest], Acc, Opts) -> parse_opts(Rest, Acc, Opts#{parallel => false});
+parse_opts([version | _], _, _) ->
+  io:put_chars(["tqformat@", version(), $\n]),
+  halt(0);
 parse_opts([], [], _) -> error_out("Invalid options", 4);
 parse_opts([], Acc, Opts) -> Opts#{files => Acc}.
 
