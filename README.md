@@ -119,6 +119,11 @@ format-on-save.
 The [intellij-tqformat](https://github.com/truqu/intellij-tqformat) plugin
 allows using `tqformat` in all JetBrains IDE products.
 
+### VSCode
+
+The [tqformat](https://marketplace.visualstudio.com/items?itemName=truqu.tqformat)
+VSCode extension allows using `tqformat` to format Erlang code in VSCode.
+
 ## License
 
 TQFormat is released under the Apache 2.0 license, as found in the `LICENSE`
