@@ -4,7 +4,7 @@
 
 strange_infix_operators(A, B) -> bnot (-(A rem B)).
 
--define(OUT_OF_CONTEXT_CLAUSE, (true -> false) ).
+-define(OUT_OF_CONTEXT_CLAUSE, true -> false ).
 
 -record(rec, {key, value}).
 
@@ -18,10 +18,11 @@ catch_expr() ->
   catch this:train(with, all, its, arguments, {they, might, be, too, many, to, "handle"}).
 
 comprehensions(Bin, List) ->
-  BinToBin = bcTodoExpr,
-  BinToList = lcTodoExpr,
-  ListToBin = bcTodoExpr,
-  ListToList = lcTodoExpr,
+  BinToBin =
+    <<<<X:1>> || <<X:8/integer>> <= Bin, X > 0, with:a_very(complex, boolean_filter, on, X)>>,
+  BinToList = [X || <<X:8/integer>> <= Bin, X > 0, with:a_very(complex, boolean_filter, on, X)],
+  ListToBin = <<<<X:1>> || X <- List, X > 0, with:a_very(complex, boolean_filter, on, X)>>,
+  ListToList = [X || X <- List, X > 0, with:a_very(complex, boolean_filter, on, X)],
   {BinToBin, BinToList, ListToBin, ListToList}.
 
 parentheses() ->
@@ -34,19 +35,19 @@ parentheses() ->
     ]
   }.
 
-receive_expr() -> receiveTodoExpr.
+receive_expr() -> receive with -> {no, timeout} end.
 
-record_index_expr(List) -> lists:keyfind(a, record_indexTodoExpr, List).
+record_index_expr(List) -> lists:keyfind(a, #rec.key, List).
 
 try_expr_after() ->
   try to:open({the, door}) of
     my -> room or your;
     room -> {my, friend}
   catch {you_cant, Open} when Open -> it:was(Open)
-  catch close:the(door, anyway)
+  after close:the(door, anyway)
   end,
   try with:no(catching)
-  catch
+  after
     do:something({ to
                  , "clean up"
                  , <<"the">>
@@ -64,5 +65,5 @@ multi_try_expr() ->
   try
     there:are(2),
     expressions:in(this_block)
-  catch catchTodoExpr -> formatter:should(indent, A, Catch, Expression)
+  catch A:Catch:Expression -> formatter:should(indent, A, Catch, Expression)
   end.

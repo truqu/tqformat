@@ -82,6 +82,8 @@ do_layout_expr({record_field, _, Key}) -> layout_expr(Key);
 do_layout_expr({record_field, _, Key, Value}) -> layout_field("=", Key, Value);
 do_layout_expr({record_field, _, Expr, Name, Key}) ->
   tqpp:cat([layout_expr(Expr), tqpp:t("#"), layout_expr(Name), tqpp:t("."), layout_expr(Key)]);
+do_layout_expr({record_index, _, Name, Key}) ->
+  tqpp:cat([tqpp:t("#"), layout_expr(Name), tqpp:t("."), layout_expr(Key)]);
 do_layout_expr({record, _, Name, Values}) ->
   tqpp:cat([tqpp:t("#"), layout_expr(Name), container_o(Values, tqpp:t("{"), tqpp:t("}"))]);
 do_layout_expr({record, _, Expr, Name, Values}) ->
