@@ -61,3 +61,8 @@ multi_try_expr() ->
     try there:are(2), expressions:in(this_block) catch
         A:Catch:Expression -> formatter:should(indent,A,Catch,Expression)
     end.
+
+multi_after_expr() ->
+  try some_fn() after
+    do_one(), do_two()
+  end.
