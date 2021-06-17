@@ -210,7 +210,7 @@ layout_catch([]) -> [];
 layout_catch(Clauses) -> [before_block(tqpp:t("catch"), layout_clauses(Clauses))].
 
 layout_after([]) -> [];
-layout_after(Clauses) -> [before_block(tqpp:t("after"), layout_clauses(Clauses))].
+layout_after(Exprs) -> [before_block(tqpp:t("after"), layout_block(Exprs))].
 
 -spec call([any()]) -> tqpp:document().
 call(Args) -> container(Args, tqpp:t("("), tqpp:t(")")).
